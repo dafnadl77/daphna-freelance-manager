@@ -19,6 +19,12 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+async function getCurrentUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw new Error("לא מחוברת למערכת");
+  return data.user.id;
+}
+
 // ----- Row <-> app type mapping -----
 
 interface IncomeRow {
@@ -259,27 +265,29 @@ export const dataService = {
 
   // ----- Settings -----
   async getSettings(): Promise<AppSettings> {
-    const result = await supabase.from("app_settings").select("*").eq("id", 1).single();
+    const userId = await getCurrentUserId();
+    const result = await supabase.from("app_settings").select("*").eq("user_id", userId).single();
     return settingsFromRow(throwIfError(result as { data: SettingsRow; error: { message: string } | null }));
   },
 
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
-    const current = await dataService.getSettings();
+    const [current, userId] = await Promise.all([dataService.getSettings(), getCurrentUserId()]);
     const next = { ...current, ...patch };
     const result = await supabase
       .from("app_settings")
       .update({ ...settingsToRow(next), updated_at: nowIso() })
-      .eq("id", 1)
+      .eq("user_id", userId)
       .select()
       .single();
     return settingsFromRow(throwIfError(result as { data: SettingsRow; error: { message: string } | null }));
   },
 
   async resetSettings(): Promise<AppSettings> {
+    const userId = await getCurrentUserId();
     const result = await supabase
       .from("app_settings")
       .update({ ...settingsToRow(DEFAULT_SETTINGS), updated_at: nowIso() })
-      .eq("id", 1)
+      .eq("user_id", userId)
       .select()
       .single();
     return settingsFromRow(throwIfError(result as { data: SettingsRow; error: { message: string } | null }));

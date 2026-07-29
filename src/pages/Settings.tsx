@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Info, RotateCcw, Trash2 } from "lucide-react";
+import { Info, LogOut, RotateCcw, Trash2 } from "lucide-react";
 import { useAppData } from "@/context/AppDataContext";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import type { AppSettings } from "@/types";
 
 export function Settings() {
   const { settings, updateSettings, resetSettings, clearSampleData, incomes } = useAppData();
+  const { user, signOut } = useAuth();
   const [form, setForm] = useState<AppSettings>(settings);
 
   useEffect(() => setForm(settings), [settings]);
@@ -42,6 +44,19 @@ export function Settings() {
         <h1 className="text-2xl font-extrabold">הגדרות</h1>
         <p className="text-sm text-muted-foreground">ערכי ברירת המחדל לחישובים באפליקציה</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>החשבון שלי</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">מחוברת כ־{user?.email}</p>
+          <Button variant="outline" onClick={() => signOut()}>
+            <LogOut className="h-4 w-4" />
+            התנתקות
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
