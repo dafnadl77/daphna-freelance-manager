@@ -110,9 +110,11 @@ export function GoalCard({
               <div>
                 <p className="text-xs font-semibold">{isAllocatedThisMonth ? "הופרש בפועל החודש" : "עדיין לא הופרש החודש"}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  {isAllocatedThisMonth
-                    ? `נוסף ${formatCurrency(monthlyAllocation)} ל"כבר נחסך"`
-                    : `סמני כשתעבירי בפועל ${formatCurrency(monthlyAllocation)}`}
+                  {monthlyAllocation <= 0
+                    ? "אין החודש הכנסות שנכללות בחישוב, אז אין מה לסמן"
+                    : isAllocatedThisMonth
+                      ? `נוסף ${formatCurrency(monthlyAllocation)} ל"כבר נחסך"`
+                      : `סמני כשתעבירי בפועל ${formatCurrency(monthlyAllocation)}`}
                 </p>
               </div>
               <Switch

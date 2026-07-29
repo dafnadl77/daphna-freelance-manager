@@ -33,9 +33,8 @@ src/
     exportUtils.ts    ייצוא CSV/JSON/גיבוי וקריאת קובצי ייבוא
     utils.ts          פונקציית cn (מיזוג classNames)
   services/
-    storageService.ts  שכבת גישה יחידה ל-localStorage (get/set/remove)
-    dataService.ts      API ברמה גבוהה ל-CRUD על הכנסות/יעדים/הגדרות + גיבוי
-    seedData.ts          נתוני הדוגמה שנוצרים בהפעלה הראשונה
+    supabaseClient.ts   לקוח Supabase (נבנה ממשתני הסביבה VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)
+    dataService.ts      API ברמה גבוהה ל-CRUD על הכנסות/יעדים/הגדרות + גיבוי, מול Supabase
   context/
     AppDataContext.tsx  ה-state הגלובלי של האפליקציה (React Context), עוטף את dataService
   components/
@@ -81,28 +80,33 @@ personalNet                 = MAX(0, netAfterObligations − goalsFund)
 
 המע״מ **אינו** מופחת מהחישוב של הנטו — הוא מוצג בנפרד כסכום למעקב בלבד, כי הסכום שמוזן הוא תמיד לפני מע״מ.
 
-## שמירת נתונים (localStorage)
+## שמירת נתונים (Supabase)
 
-כל הנתונים (הכנסות, יעדים, הגדרות) נשמרים בדפדפן באמצעות `localStorage`, דרך שתי שכבות:
+כל הנתונים (הכנסות, יעדים, הגדרות) נשמרים במסד נתונים משותף ב-Supabase — **אותם נתונים מכל מכשיר ודפדפן**, לא רק בדפדפן הנוכחי. שלוש טבלאות: `incomes`, `goals`, `app_settings` (שורה יחידה עם `id=1`).
 
-1. **`storageService.ts`** — השכבה היחידה שנוגעת ב-`window.localStorage` ישירות. אחראית רק על get/set/remove גנרי, עם namespace קבוע ו-JSON serialization בטוח.
-2. **`dataService.ts`** — ה-API שכל שאר האפליקציה משתמשת בו. חושף פונקציות async (`getIncomes`, `addIncome`, `updateGoal`, `exportBackup` וכו') כדי שממשק הקריאה יישאר זהה גם כשההטמעה תוחלף בעתיד.
+1. **`supabaseClient.ts`** — יוצר לקוח Supabase יחיד מתוך משתני הסביבה `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`.
+2. **`dataService.ts`** — ה-API שכל שאר האפליקציה משתמשת בו. חושף פונקציות async (`getIncomes`, `addIncome`, `updateGoal`, `exportBackup` וכו') שמדברות עם הטבלאות ישירות.
 
-אף רכיב תצוגה לא ניגש ל-`localStorage` ישירות — הכל עובר דרך `dataService`.
+אף רכיב תצוגה לא ניגש ל-Supabase ישירות — הכל עובר דרך `dataService`.
 
-## מעבר עתידי ל-Lovable ול-Supabase
+⚠️ **הערת אבטחה**: כרגע אין מסך התחברות/הרשמה, כך שכל מי שיש לו את קישור האתר יכול לצפות ולערוך את הנתונים (כמו שהיה קודם עם localStorage, רק עכשיו משותף בין מכשירים). אם בעתיד רוצים להגביל גישה — יש להוסיף Supabase Auth (ראו סעיף הבא).
 
-הפרויקט נבנה כך שהמעבר יהיה ממוקד וללא שינוי בממשקי הקריאה:
+### הגדרת סביבה מקומית
 
-1. **Lovable**: ייבוא הפרויקט הקיים (React + TypeScript + Tailwind + shadcn/ui הם הסטאק המובנה של Lovable), ללא צורך בשינוי מבנה.
-2. **Supabase**:
-   - צרו טבלאות `incomes`, `goals`, `settings` (ראו את ה-interfaces ב-`src/types` כבסיס למבנה העמודות).
-   - כתבו מימוש חדש ל-`dataService.ts` שמדבר עם Supabase (`supabase.from('incomes').select()` וכו') במקום עם `storageService`. מכיוון שכל הפונקציות כבר `async` והממשק (הפרמטרים וערכי ההחזרה) לא משתנה, **אין צורך לגעת באף קומפוננטת React**.
-   - אפשר למחוק את `storageService.ts` או להשאיר אותו כ-fallback למצב אופליין.
-3. **הרשמה והתחברות**: הוסיפו Supabase Auth, ועטפו את `AppDataProvider` בבדיקת session; הוסיפו עמודת `user_id` לכל טבלה וסננו לפי המשתמש המחובר.
-4. **נתונים נפרדים לכל משתמשת**: מובטח באמצעות Row Level Security ב-Supabase על בסיס `user_id`.
-5. **סנכרון בין מכשירים**: מגיע "בחינם" ברגע שהנתונים עוברים לשרת במקום ל-localStorage.
-6. **סיכום שבועי אוטומטי / התראות ליעד מתקרב / דוח במייל**: אלו הופכים לזמינים בקלות ברגע שיש backend — למשל Supabase Edge Function שרצה בקרון ומשתמשת מחדש בפונקציות מ-`finance.ts` (שהן טהורות ועובדות גם בסביבת Node/Deno).
+צרו קובץ `.env` (לא נכנס ל-git) לפי `.env.example`:
+
+```
+VITE_SUPABASE_URL=https://uhbdpcdkkzuazruhefrw.supabase.co
+VITE_SUPABASE_ANON_KEY=<המפתח הציבורי מ-Supabase>
+```
+
+באתר הפרוס ב-Vercel, אותם משתנים מוגדרים תחת Project Settings → Environment Variables.
+
+## מעבר עתידי ל-Lovable ולהרשמה/התחברות
+
+1. **Lovable**: ייבוא הפרויקט הקיים (React + TypeScript + Tailwind + shadcn/ui + Supabase הם הסטאק המובנה של Lovable), ללא צורך בשינוי מבנה.
+2. **הרשמה והתחברות**: הוסיפו Supabase Auth, ועטפו את `AppDataProvider` בבדיקת session; הוסיפו עמודת `user_id` לכל טבלה, הפעילו Row Level Security לפי המשתמש המחובר, וסננו את כל השאילתות ב-`dataService.ts` לפיו.
+3. **סיכום שבועי אוטומטי / התראות ליעד מתקרב / דוח במייל**: אלו הופכים לזמינים בקלות עם Supabase Edge Function שרצה בקרון ומשתמשת מחדש בפונקציות מ-`finance.ts` (שהן טהורות ועובדות גם בסביבת Node/Deno).
 
 מבנה הגיבוי (`BackupData`) כולל שדה `version`, כדי לאפשר מיגרציות עתידיות של פורמט הנתונים בלי לשבור גיבויים קיימים של משתמשות.
 
