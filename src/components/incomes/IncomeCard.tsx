@@ -58,8 +58,10 @@ export function IncomeCard({ income, onEdit }: IncomeCardProps) {
             </div>
           </div>
           <div className="text-left">
-            <p className="text-lg font-extrabold">{formatCurrency(income.amountBeforeVat)}</p>
-            <p className="text-xs text-muted-foreground">לפני מע״מ</p>
+            <p className="text-lg font-extrabold">
+              {formatCurrency(income.amountBeforeVat * (1 + settings.vatRate / 100))}
+            </p>
+            <p className="text-xs text-muted-foreground">כולל מע״מ · {formatCurrency(income.amountBeforeVat)} לפני מע״מ</p>
           </div>
         </div>
 

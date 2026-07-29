@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IncomeCalcBreakdown } from "./IncomeCalcBreakdown";
 import { useAppData } from "@/context/AppDataContext";
-import { todayIso } from "@/lib/format";
+import { formatCurrency, todayIso } from "@/lib/format";
 import type { Income, IncomeInput, IncomeStatus } from "@/types";
 
 interface IncomeFormDialogProps {
@@ -51,19 +51,40 @@ function buildInitialState(
   };
 }
 
+/** The amount is entered including VAT; internally the app still stores and
+ * calculates everything from the pre-VAT amount, so this converts both ways. */
+function toAmountWithVat(amountBeforeVat: number, vatRate: number): number {
+  return amountBeforeVat * (1 + vatRate / 100);
+}
+
+function toAmountBeforeVat(amountWithVat: number, vatRate: number): number {
+  return amountWithVat / (1 + vatRate / 100);
+}
+
 export function IncomeFormDialog({ open, onOpenChange, income }: IncomeFormDialogProps) {
   const { settings, addIncome, updateIncome } = useAppData();
   const [form, setForm] = useState<IncomeInput>(() => buildInitialState(income, settings));
+  const [amountWithVatInput, setAmountWithVatInput] = useState(() =>
+    toAmountWithVat(form.amountBeforeVat, settings.vatRate)
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setForm(buildInitialState(income, settings));
+      const initial = buildInitialState(income, settings);
+      setForm(initial);
+      setAmountWithVatInput(toAmountWithVat(initial.amountBeforeVat, settings.vatRate));
       setError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, income]);
+
+  function handleAmountWithVatChange(value: number) {
+    const amountWithVat = Math.max(0, value);
+    setAmountWithVatInput(amountWithVat);
+    setForm((prev) => ({ ...prev, amountBeforeVat: toAmountBeforeVat(amountWithVat, settings.vatRate) }));
+  }
 
   const isEdit = Boolean(income);
 
@@ -106,7 +127,7 @@ export function IncomeFormDialog({ open, onOpenChange, income }: IncomeFormDialo
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "עריכת הכנסה" : "הוספת הכנסה חדשה"}</DialogTitle>
-          <DialogDescription>הזיני את סכום ההכנסה לפני מע״מ, והאפליקציה תחשב את השאר</DialogDescription>
+          <DialogDescription>הזיני את הסכום כפי שנקוב בחשבונית, כולל מע״מ — האפליקציה תחשב את השאר</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -149,15 +170,18 @@ export function IncomeFormDialog({ open, onOpenChange, income }: IncomeFormDialo
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="amount">סכום לפני מע״מ (₪)</Label>
+              <Label htmlFor="amount">סכום כולל מע״מ ({settings.vatRate}%) (₪)</Label>
               <Input
                 id="amount"
                 type="number"
                 min={0}
                 step="0.01"
-                value={Number.isFinite(form.amountBeforeVat) ? form.amountBeforeVat : ""}
-                onChange={(e) => setForm({ ...form, amountBeforeVat: Math.max(0, Number(e.target.value)) })}
+                value={Number.isFinite(amountWithVatInput) ? amountWithVatInput : ""}
+                onChange={(e) => handleAmountWithVatChange(Number(e.target.value))}
               />
+              <p className="text-xs text-muted-foreground">
+                סכום לפני מע״מ: {Number.isFinite(form.amountBeforeVat) ? formatCurrency(form.amountBeforeVat, true) : "—"}
+              </p>
             </div>
           </div>
 

@@ -11,9 +11,9 @@ export function IncomeCalcBreakdown({ income, settings }: IncomeCalcBreakdownPro
   const calc = calculateIncomeBreakdown(income, settings);
 
   const rows = [
-    { label: "סכום לפני מע״מ", value: calc.amountBeforeVat },
-    { label: `מע״מ (${settings.vatRate}%)`, value: calc.vatAmount },
-    { label: "סכום כולל חשבונית", value: calc.invoiceTotal, strong: true },
+    { label: "סכום כולל מע״מ (מה שהוזן)", value: calc.invoiceTotal, strong: true },
+    { label: `מתוכו מע״מ (${settings.vatRate}%)`, value: calc.vatAmount },
+    { label: "סכום לפני מע״מ", value: calc.amountBeforeVat, strong: true },
     { label: "תשלום למטה", value: -calc.organizationFee, negative: calc.organizationFee > 0 },
     { label: "נטו לחלוקה", value: calc.netToDistribute, strong: true },
     { label: `מס הכנסה (${settings.incomeTaxRate}%)`, value: -calc.incomeTax, negative: calc.incomeTax > 0 },
