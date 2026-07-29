@@ -30,11 +30,10 @@ const STATUS_LABELS: Record<IncomeStatus, string> = {
   cancelled: "בוטל",
 };
 
-function buildInitialState(income: Income | null | undefined, defaults: {
-  organizationFeeRate: number;
-  incomeTaxRate: number;
-  businessReserveRate: number;
-}): IncomeInput {
+function buildInitialState(
+  income: Income | null | undefined,
+  defaults: { organizationFeeRate: number }
+): IncomeInput {
   if (income) {
     const { id, createdAt, updatedAt, ...rest } = income;
     return rest;
@@ -46,10 +45,6 @@ function buildInitialState(income: Income | null | undefined, defaults: {
     amountBeforeVat: 0,
     hasOrganizationFee: true,
     organizationFeeRate: defaults.organizationFeeRate,
-    calculateIncomeTax: true,
-    incomeTaxRate: defaults.incomeTaxRate,
-    hasBusinessReserve: defaults.businessReserveRate > 0,
-    businessReserveRate: defaults.businessReserveRate,
     status: "received",
     notes: "",
     isSample: false,
@@ -187,54 +182,16 @@ export function IncomeFormDialog({ open, onOpenChange, income }: IncomeFormDialo
             )}
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border/70 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <Label htmlFor="hasTax">חישוב מס הכנסה</Label>
-                <p className="text-xs text-muted-foreground">הפרשה משוערת למס הכנסה</p>
-              </div>
-              <Switch id="hasTax" checked={form.calculateIncomeTax} onCheckedChange={(v) => setForm({ ...form, calculateIncomeTax: v })} />
-            </div>
-            {form.calculateIncomeTax && (
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step="0.1"
-                value={form.incomeTaxRate}
-                onChange={(e) => setForm({ ...form, incomeTaxRate: Number(e.target.value) })}
-                className="w-32"
-              />
-            )}
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-border/70 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <Label htmlFor="hasReserve">רזרבה לעסק</Label>
-                <p className="text-xs text-muted-foreground">הפרשה לרזרבה עסקית</p>
-              </div>
-              <Switch id="hasReserve" checked={form.hasBusinessReserve} onCheckedChange={(v) => setForm({ ...form, hasBusinessReserve: v })} />
-            </div>
-            {form.hasBusinessReserve && (
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                step="0.1"
-                value={form.businessReserveRate}
-                onChange={(e) => setForm({ ...form, businessReserveRate: Number(e.target.value) })}
-                className="w-32"
-              />
-            )}
-          </div>
+          <p className="rounded-xl bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
+            מס הכנסה, רזרבה לעסק, הפרשה ליעדים והפרשה לבית מחושבים לפי האחוזים הקבועים שהוגדרו ב״הגדרות״, ומתעדכנים אוטומטית שם עבור כל ההכנסות.
+          </p>
 
           <div className="space-y-1.5">
             <Label htmlFor="notes">הערות</Label>
             <Textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
           </div>
 
-          <IncomeCalcBreakdown income={form} vatRate={settings.vatRate} />
+          <IncomeCalcBreakdown income={form} settings={settings} />
 
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 

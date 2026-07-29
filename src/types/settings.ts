@@ -5,6 +5,7 @@ export interface AppSettings {
   nationalInsuranceMonthly: number; // fixed monthly amount in ILS
   businessReserveRate: number; // percentage
   goalsRate: number; // percentage of net after obligations
+  homeRate: number; // percentage of net after obligations kept for personal/home use
   includePendingInForecast: boolean;
   currency: "ILS";
   numberFormatLocale: "he-IL";
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   nationalInsuranceMonthly: 3313,
   businessReserveRate: 0,
   goalsRate: 20,
+  homeRate: 65,
   includePendingInForecast: true,
   currency: "ILS",
   numberFormatLocale: "he-IL",

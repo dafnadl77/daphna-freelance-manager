@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Info, LogOut, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, Info, LogOut, RotateCcw, Trash2 } from "lucide-react";
 import { useAppData } from "@/context/AppDataContext";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { isObligationDistributionValid, sumObligationPercentages } from "@/lib/finance";
 import type { AppSettings } from "@/types";
 
 export function Settings() {
@@ -61,7 +62,10 @@ export function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>אחוזים ברירת מחדל</CardTitle>
-          <CardDescription>הערכים האלו יוצעו אוטומטית בעת הוספת הכנסה חדשה, וניתן לשנות אותם לכל הכנסה בנפרד</CardDescription>
+          <CardDescription>
+            הערכים האלו יוצעו אוטומטית בעת הוספת הכנסה חדשה, וניתן לשנות אותם לכל הכנסה בנפרד. מס הכנסה, רזרבה לעסק, הפרשה
+            ליעדים והפרשה לבית מתחלקים תמיד מתוך אותה קרן חודשית, ולכן צריכים להסתכם ב-100%
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <FieldRow label="מע״מ (%)" hint="שיעור המע״מ המחושב על כל הכנסה, לצורכי מעקב בלבד">
@@ -79,6 +83,8 @@ export function Settings() {
               className="w-28"
             />
           </FieldRow>
+
+          <ObligationsPercentageBanner settings={form} />
 
           <FieldRow label="מס הכנסה (%)" hint="זהו אומדן לצורכי תכנון ואינו מחליף חישוב של רואה חשבון">
             <Input
@@ -104,7 +110,7 @@ export function Settings() {
             />
           </FieldRow>
 
-          <FieldRow label="הפרשה ליעדים (%)" hint="אחוז מהנטו החודשי אחרי התחייבויות שיופרש לקרן היעדים">
+          <FieldRow label="הפרשה ליעדים (%)" hint="אחוז מהנטו החודשי שיופרש לקרן היעדים">
             <Input
               type="number"
               min={0}
@@ -112,6 +118,18 @@ export function Settings() {
               step="0.1"
               value={form.goalsRate}
               onChange={(e) => updateField("goalsRate", Number(e.target.value))}
+              className="w-28"
+            />
+          </FieldRow>
+
+          <FieldRow label="הפרשה לבית (%)" hint="אחוז מהנטו החודשי שנשאר למחיה/משכורת אישית">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              value={form.homeRate}
+              onChange={(e) => updateField("homeRate", Number(e.target.value))}
               className="w-28"
             />
           </FieldRow>
@@ -206,6 +224,20 @@ export function Settings() {
           </AlertDialog>
         )}
       </div>
+    </div>
+  );
+}
+
+function ObligationsPercentageBanner({ settings }: { settings: AppSettings }) {
+  const total = sumObligationPercentages(settings);
+  const isValid = isObligationDistributionValid(settings);
+
+  if (isValid) return null;
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
+      <AlertTriangle className="h-4 w-4 shrink-0" />
+      מס הכנסה + רזרבה לעסק + הפרשה ליעדים + הפרשה לבית צריכים להסתכם ב-100% (כרגע {total.toFixed(1)}%)
     </div>
   );
 }

@@ -8,47 +8,39 @@ export function toMonthKey(date: Date | string): string {
   return `${year}-${month}`;
 }
 
-/** Full per-income calculation breakdown, per the app's fixed formulas. */
+/** Illustrative per-income breakdown: this income's own net (after its
+ * optional organization fee) split by the current settings rates. National
+ * Insurance is excluded here since it's a flat monthly amount, applied only
+ * in computeMonthlySummary. */
 export function calculateIncomeBreakdown(
-  income: Pick<
-    Income,
-    | "amountBeforeVat"
-    | "hasOrganizationFee"
-    | "organizationFeeRate"
-    | "calculateIncomeTax"
-    | "incomeTaxRate"
-    | "hasBusinessReserve"
-    | "businessReserveRate"
-  >,
-  vatRate: number
+  income: Pick<Income, "amountBeforeVat" | "hasOrganizationFee" | "organizationFeeRate">,
+  settings: AppSettings
 ): IncomeCalculation {
   const amountBeforeVat = Math.max(0, income.amountBeforeVat || 0);
-  const vatAmount = amountBeforeVat * (vatRate / 100);
+  const vatAmount = amountBeforeVat * (settings.vatRate / 100);
   const invoiceTotal = amountBeforeVat + vatAmount;
 
   const organizationFee = income.hasOrganizationFee
     ? amountBeforeVat * (income.organizationFeeRate / 100)
     : 0;
 
-  const incomeTax = income.calculateIncomeTax
-    ? amountBeforeVat * (income.incomeTaxRate / 100)
-    : 0;
+  const netToDistribute = amountBeforeVat - organizationFee;
 
-  const businessReserve = income.hasBusinessReserve
-    ? amountBeforeVat * (income.businessReserveRate / 100)
-    : 0;
-
-  const remainingBeforeNationalInsurance =
-    amountBeforeVat - organizationFee - incomeTax - businessReserve;
+  const incomeTax = netToDistribute * (settings.incomeTaxRate / 100);
+  const businessReserve = netToDistribute * (settings.businessReserveRate / 100);
+  const goalsAllocation = netToDistribute * (settings.goalsRate / 100);
+  const homeAllocation = netToDistribute * (settings.homeRate / 100);
 
   return {
     amountBeforeVat,
     vatAmount,
     invoiceTotal,
     organizationFee,
+    netToDistribute,
     incomeTax,
     businessReserve,
-    remainingBeforeNationalInsurance,
+    goalsAllocation,
+    homeAllocation,
   };
 }
 
@@ -85,31 +77,24 @@ export function computeMonthlySummary(
 
   const totalIncome = includedIncomes.reduce((sum, i) => sum + i.amountBeforeVat, 0);
   const vatCollected = includedIncomes.reduce(
-    (sum, i) => sum + calculateIncomeBreakdown(i, settings.vatRate).vatAmount,
+    (sum, i) => sum + calculateIncomeBreakdown(i, settings).vatAmount,
     0
   );
   const totalOrganizationFees = includedIncomes.reduce(
-    (sum, i) => sum + calculateIncomeBreakdown(i, settings.vatRate).organizationFee,
-    0
-  );
-  const totalIncomeTax = includedIncomes.reduce(
-    (sum, i) => sum + calculateIncomeBreakdown(i, settings.vatRate).incomeTax,
-    0
-  );
-  const totalBusinessReserve = includedIncomes.reduce(
-    (sum, i) => sum + calculateIncomeBreakdown(i, settings.vatRate).businessReserve,
+    (sum, i) => sum + calculateIncomeBreakdown(i, settings).organizationFee,
     0
   );
 
   const nationalInsurance = includedIncomes.length > 0 ? settings.nationalInsuranceMonthly : 0;
 
-  const netAfterObligations = Math.max(
-    0,
-    totalIncome - totalOrganizationFees - totalIncomeTax - totalBusinessReserve - nationalInsurance
-  );
+  const netToDistribute = Math.max(0, totalIncome - totalOrganizationFees - nationalInsurance);
 
-  const goalsFund = netAfterObligations * (settings.goalsRate / 100);
-  const personalNet = Math.max(0, netAfterObligations - goalsFund);
+  const totalIncomeTax = netToDistribute * (settings.incomeTaxRate / 100);
+  const totalBusinessReserve = netToDistribute * (settings.businessReserveRate / 100);
+  const goalsFund = netToDistribute * (settings.goalsRate / 100);
+  const personalNet = netToDistribute * (settings.homeRate / 100);
+
+  const netAfterObligations = Math.max(0, netToDistribute - totalIncomeTax - totalBusinessReserve);
 
   return {
     month,
@@ -126,6 +111,16 @@ export function computeMonthlySummary(
     personalNet,
     incomeCount: includedIncomes.length,
   };
+}
+
+/** The four obligation percentages (tax, business reserve, goals, home) are
+ * meant to always split the same monthly pool (netToDistribute) exactly. */
+export function sumObligationPercentages(settings: AppSettings): number {
+  return settings.incomeTaxRate + settings.businessReserveRate + settings.goalsRate + settings.homeRate;
+}
+
+export function isObligationDistributionValid(settings: AppSettings): boolean {
+  return Math.abs(sumObligationPercentages(settings) - 100) < 0.01;
 }
 
 export function sumGoalPercentages(goals: Goal[]): number {

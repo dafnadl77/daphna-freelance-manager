@@ -55,8 +55,6 @@ export function IncomeCard({ income, onEdit }: IncomeCardProps) {
               ) : (
                 <Badge variant="outline">ללא תשלום למטה</Badge>
               )}
-              {income.calculateIncomeTax && <Badge variant="warning">מס הכנסה {income.incomeTaxRate}%</Badge>}
-              {income.hasBusinessReserve && <Badge variant="warning">רזרבה {income.businessReserveRate}%</Badge>}
             </div>
           </div>
           <div className="text-left">
@@ -102,7 +100,7 @@ export function IncomeCard({ income, onEdit }: IncomeCardProps) {
 
         {expanded && (
           <div className="mt-3">
-            <IncomeCalcBreakdown income={income} vatRate={settings.vatRate} />
+            <IncomeCalcBreakdown income={income} settings={settings} />
           </div>
         )}
       </CardContent>

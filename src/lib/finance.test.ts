@@ -4,6 +4,8 @@ import {
   computeGoalAllocations,
   computeMonthlySummary,
   isGoalDistributionValid,
+  isObligationDistributionValid,
+  sumObligationPercentages,
   toMonthKey,
 } from "./finance";
 import { DEFAULT_SETTINGS } from "@/types/settings";
@@ -17,10 +19,6 @@ const baseIncome: Income = {
   amountBeforeVat: 16000,
   hasOrganizationFee: true,
   organizationFeeRate: 12,
-  calculateIncomeTax: true,
-  incomeTaxRate: 15,
-  hasBusinessReserve: false,
-  businessReserveRate: 0,
   status: "received",
   notes: "",
   createdAt: "2026-07-15T00:00:00.000Z",
@@ -28,42 +26,53 @@ const baseIncome: Income = {
 };
 
 describe("calculateIncomeBreakdown", () => {
-  it("matches the spec example for a single income", () => {
-    const result = calculateIncomeBreakdown(baseIncome, DEFAULT_SETTINGS.vatRate);
+  it("splits this income's net (after org fee) across tax/reserve/goals/home per the default settings", () => {
+    const result = calculateIncomeBreakdown(baseIncome, DEFAULT_SETTINGS);
     expect(result.vatAmount).toBeCloseTo(2880);
     expect(result.invoiceTotal).toBeCloseTo(18880);
     expect(result.organizationFee).toBeCloseTo(1920);
-    expect(result.incomeTax).toBeCloseTo(2400);
+    expect(result.netToDistribute).toBeCloseTo(14080);
+    expect(result.incomeTax).toBeCloseTo(2112);
     expect(result.businessReserve).toBe(0);
-    expect(result.remainingBeforeNationalInsurance).toBeCloseTo(11680);
+    expect(result.goalsAllocation).toBeCloseTo(2816);
+    expect(result.homeAllocation).toBeCloseTo(9152);
   });
 
-  it("skips organization fee, income tax and reserve when disabled", () => {
-    const result = calculateIncomeBreakdown(
-      { ...baseIncome, hasOrganizationFee: false, calculateIncomeTax: false, hasBusinessReserve: false },
-      18
-    );
+  it("the four splits always add up to netToDistribute", () => {
+    const result = calculateIncomeBreakdown(baseIncome, DEFAULT_SETTINGS);
+    const total = result.incomeTax + result.businessReserve + result.goalsAllocation + result.homeAllocation;
+    expect(total).toBeCloseTo(result.netToDistribute);
+  });
+
+  it("skips organization fee when disabled", () => {
+    const result = calculateIncomeBreakdown({ ...baseIncome, hasOrganizationFee: false }, DEFAULT_SETTINGS);
     expect(result.organizationFee).toBe(0);
-    expect(result.incomeTax).toBe(0);
-    expect(result.businessReserve).toBe(0);
-    expect(result.remainingBeforeNationalInsurance).toBe(result.amountBeforeVat);
+    expect(result.netToDistribute).toBe(result.amountBeforeVat);
   });
 
   it("never produces a negative amount for negative input", () => {
-    const result = calculateIncomeBreakdown({ ...baseIncome, amountBeforeVat: -500 }, 18);
+    const result = calculateIncomeBreakdown({ ...baseIncome, amountBeforeVat: -500 }, DEFAULT_SETTINGS);
     expect(result.amountBeforeVat).toBe(0);
   });
 });
 
 describe("computeMonthlySummary", () => {
-  it("matches the exact spec example numbers", () => {
+  it("splits the monthly net-to-distribute across tax/reserve/goals/home per the default settings", () => {
     const summary = computeMonthlySummary([baseIncome], DEFAULT_SETTINGS, "2026-07");
     expect(summary.totalOrganizationFees).toBeCloseTo(1920);
-    expect(summary.totalIncomeTax).toBeCloseTo(2400);
     expect(summary.nationalInsurance).toBe(3313);
-    expect(summary.netAfterObligations).toBeCloseTo(8367);
-    expect(summary.goalsFund).toBeCloseTo(1673.4);
-    expect(summary.personalNet).toBeCloseTo(6693.6);
+    expect(summary.totalIncomeTax).toBeCloseTo(1615.05);
+    expect(summary.totalBusinessReserve).toBe(0);
+    expect(summary.goalsFund).toBeCloseTo(2153.4);
+    expect(summary.personalNet).toBeCloseTo(6998.55);
+    expect(summary.netAfterObligations).toBeCloseTo(9151.95);
+  });
+
+  it("keeps the four monthly splits summing to netToDistribute (income - orgFee - NI)", () => {
+    const summary = computeMonthlySummary([baseIncome], DEFAULT_SETTINGS, "2026-07");
+    const netToDistribute = summary.totalIncome - summary.totalOrganizationFees - summary.nationalInsurance;
+    const total = summary.totalIncomeTax + summary.totalBusinessReserve + summary.goalsFund + summary.personalNet;
+    expect(total).toBeCloseTo(netToDistribute);
   });
 
   it("excludes cancelled incomes entirely", () => {
@@ -98,6 +107,18 @@ describe("computeMonthlySummary", () => {
   });
 });
 
+describe("obligation percentage validation", () => {
+  it("flags the default settings as valid (sums to 100)", () => {
+    expect(sumObligationPercentages(DEFAULT_SETTINGS)).toBeCloseTo(100);
+    expect(isObligationDistributionValid(DEFAULT_SETTINGS)).toBe(true);
+  });
+
+  it("flags an invalid distribution when the four rates don't sum to 100", () => {
+    const invalid = { ...DEFAULT_SETTINGS, businessReserveRate: 20 };
+    expect(isObligationDistributionValid(invalid)).toBe(false);
+  });
+});
+
 describe("goal allocations", () => {
   const goals: Goal[] = [
     { id: "g1", name: "מדריד", icon: "✈️", percentage: 40, targetAmount: 4000, savedAmount: 0, targetDate: null, color: "#7C3AED", order: 0, createdAt: "", updatedAt: "" },
@@ -106,12 +127,12 @@ describe("goal allocations", () => {
     { id: "g4", name: "מדפסת תלת־ממד", icon: "🖨️", percentage: 15, targetAmount: 3000, savedAmount: 0, targetDate: null, color: "#10B981", order: 3, createdAt: "", updatedAt: "" },
   ];
 
-  it("splits the goals fund according to the spec example", () => {
-    const allocations = computeGoalAllocations(1673.4, goals);
-    expect(allocations.find((a) => a.goalId === "g1")!.amount).toBeCloseTo(669.36);
-    expect(allocations.find((a) => a.goalId === "g2")!.amount).toBeCloseTo(334.68);
-    expect(allocations.find((a) => a.goalId === "g3")!.amount).toBeCloseTo(418.35);
-    expect(allocations.find((a) => a.goalId === "g4")!.amount).toBeCloseTo(251.01);
+  it("splits a goals fund across goals by percentage", () => {
+    const allocations = computeGoalAllocations(2153.4, goals);
+    expect(allocations.find((a) => a.goalId === "g1")!.amount).toBeCloseTo(861.36);
+    expect(allocations.find((a) => a.goalId === "g2")!.amount).toBeCloseTo(430.68);
+    expect(allocations.find((a) => a.goalId === "g3")!.amount).toBeCloseTo(538.35);
+    expect(allocations.find((a) => a.goalId === "g4")!.amount).toBeCloseTo(323.01);
   });
 
   it("flags an invalid distribution when percentages don't sum to 100", () => {

@@ -35,10 +35,6 @@ interface IncomeRow {
   amount_before_vat: number;
   has_organization_fee: boolean;
   organization_fee_rate: number;
-  calculate_income_tax: boolean;
-  income_tax_rate: number;
-  has_business_reserve: boolean;
-  business_reserve_rate: number;
   status: Income["status"];
   notes: string;
   is_sample: boolean;
@@ -55,10 +51,6 @@ function incomeFromRow(row: IncomeRow): Income {
     amountBeforeVat: Number(row.amount_before_vat),
     hasOrganizationFee: row.has_organization_fee,
     organizationFeeRate: Number(row.organization_fee_rate),
-    calculateIncomeTax: row.calculate_income_tax,
-    incomeTaxRate: Number(row.income_tax_rate),
-    hasBusinessReserve: row.has_business_reserve,
-    businessReserveRate: Number(row.business_reserve_rate),
     status: row.status,
     notes: row.notes,
     isSample: row.is_sample,
@@ -75,10 +67,6 @@ function incomeToRow(input: Partial<IncomeInput>): Partial<IncomeRow> {
   if (input.amountBeforeVat !== undefined) row.amount_before_vat = input.amountBeforeVat;
   if (input.hasOrganizationFee !== undefined) row.has_organization_fee = input.hasOrganizationFee;
   if (input.organizationFeeRate !== undefined) row.organization_fee_rate = input.organizationFeeRate;
-  if (input.calculateIncomeTax !== undefined) row.calculate_income_tax = input.calculateIncomeTax;
-  if (input.incomeTaxRate !== undefined) row.income_tax_rate = input.incomeTaxRate;
-  if (input.hasBusinessReserve !== undefined) row.has_business_reserve = input.hasBusinessReserve;
-  if (input.businessReserveRate !== undefined) row.business_reserve_rate = input.businessReserveRate;
   if (input.status !== undefined) row.status = input.status;
   if (input.notes !== undefined) row.notes = input.notes;
   if (input.isSample !== undefined) row.is_sample = input.isSample;
@@ -138,6 +126,7 @@ interface SettingsRow {
   national_insurance_monthly: number;
   business_reserve_rate: number;
   goals_rate: number;
+  home_rate: number;
   include_pending_in_forecast: boolean;
   currency: AppSettings["currency"];
   number_format_locale: AppSettings["numberFormatLocale"];
@@ -151,6 +140,7 @@ function settingsFromRow(row: SettingsRow): AppSettings {
     nationalInsuranceMonthly: Number(row.national_insurance_monthly),
     businessReserveRate: Number(row.business_reserve_rate),
     goalsRate: Number(row.goals_rate),
+    homeRate: Number(row.home_rate),
     includePendingInForecast: row.include_pending_in_forecast,
     currency: row.currency,
     numberFormatLocale: row.number_format_locale,
@@ -165,6 +155,7 @@ function settingsToRow(settings: AppSettings): SettingsRow {
     national_insurance_monthly: settings.nationalInsuranceMonthly,
     business_reserve_rate: settings.businessReserveRate,
     goals_rate: settings.goalsRate,
+    home_rate: settings.homeRate,
     include_pending_in_forecast: settings.includePendingInForecast,
     currency: settings.currency,
     number_format_locale: settings.numberFormatLocale,
@@ -310,6 +301,7 @@ export const dataService = {
   },
 
   async importBackup(data: BackupData): Promise<void> {
+    const userId = await getCurrentUserId();
     await supabase.from("incomes").delete().neq("id", "__none__");
     await supabase.from("goals").delete().neq("id", "__none__");
 
@@ -323,7 +315,10 @@ export const dataService = {
       const result = await supabase.from("goals").insert(rows);
       throwIfError(result as { data: null; error: { message: string } | null });
     }
-    const result = await supabase.from("app_settings").update(settingsToRow(data.settings)).eq("id", 1);
+    const result = await supabase
+      .from("app_settings")
+      .update({ ...settingsToRow(data.settings), updated_at: nowIso() })
+      .eq("user_id", userId);
     throwIfError(result as { data: null; error: { message: string } | null });
   },
 };

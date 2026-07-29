@@ -8,10 +8,6 @@ export interface Income {
   amountBeforeVat: number;
   hasOrganizationFee: boolean;
   organizationFeeRate: number; // percentage, e.g. 12 for 12%
-  calculateIncomeTax: boolean;
-  incomeTaxRate: number; // percentage
-  hasBusinessReserve: boolean;
-  businessReserveRate: number; // percentage
   status: IncomeStatus;
   notes: string;
   isSample?: boolean;
@@ -21,12 +17,18 @@ export interface Income {
 
 export type IncomeInput = Omit<Income, "id" | "createdAt" | "updatedAt">;
 
+/** Illustrative per-income breakdown: how this income's own net (after its
+ * optional organization fee) would split under the current settings rates.
+ * National Insurance is excluded here since it's a flat monthly amount,
+ * not a per-income concept. */
 export interface IncomeCalculation {
   amountBeforeVat: number;
   vatAmount: number;
   invoiceTotal: number;
   organizationFee: number;
+  netToDistribute: number;
   incomeTax: number;
   businessReserve: number;
-  remainingBeforeNationalInsurance: number;
+  goalsAllocation: number;
+  homeAllocation: number;
 }

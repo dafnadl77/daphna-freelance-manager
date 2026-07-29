@@ -12,17 +12,7 @@ function downloadBlob(content: string, filename: string, mimeType: string): void
   URL.revokeObjectURL(url);
 }
 
-const CSV_HEADERS = [
-  "תאריך",
-  "לקוח",
-  "פרויקט",
-  "סכום לפני מעמ",
-  "סטטוס",
-  "תשלום למטה",
-  "מס הכנסה משוער",
-  "רזרבה לעסק",
-  "הערות",
-];
+const CSV_HEADERS = ["תאריך", "לקוח", "פרויקט", "סכום לפני מעמ", "סטטוס", "תשלום למטה", "הערות"];
 
 function escapeCsvField(value: string | number): string {
   const str = String(value);
@@ -38,8 +28,6 @@ export function incomesToCsv(incomes: Income[]): string {
     i.amountBeforeVat,
     i.status,
     i.hasOrganizationFee ? `${i.organizationFeeRate}%` : "לא",
-    i.calculateIncomeTax ? `${i.incomeTaxRate}%` : "לא",
-    i.hasBusinessReserve ? `${i.businessReserveRate}%` : "לא",
     i.notes,
   ]);
   const lines = [CSV_HEADERS, ...rows].map((row) => row.map(escapeCsvField).join(","));
