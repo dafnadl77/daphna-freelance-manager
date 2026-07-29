@@ -48,7 +48,7 @@ function buildInitialState(income: Income | null | undefined, defaults: {
     organizationFeeRate: defaults.organizationFeeRate,
     calculateIncomeTax: true,
     incomeTaxRate: defaults.incomeTaxRate,
-    hasBusinessReserve: false,
+    hasBusinessReserve: defaults.businessReserveRate > 0,
     businessReserveRate: defaults.businessReserveRate,
     status: "received",
     notes: "",
