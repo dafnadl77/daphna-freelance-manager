@@ -6,11 +6,11 @@ import { GoalCard } from "@/components/goals/GoalCard";
 import { GoalFormDialog } from "@/components/goals/GoalFormDialog";
 import { GoalsPercentageBanner } from "@/components/goals/GoalsPercentageBanner";
 import { GoalCelebration } from "@/components/goals/GoalCelebration";
-import { computeGoalAllocations, computeMonthlySummary, toMonthKey } from "@/lib/finance";
+import { computeGoalAllocations, computeMonthlySummary, isGoalCompleted, toMonthKey } from "@/lib/finance";
 import type { Goal } from "@/types";
 
 export function Goals() {
-  const { goals, incomes, settings, reorderGoals } = useAppData();
+  const { goals, incomes, settings, reorderGoals, updateGoal } = useAppData();
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [celebrating, setCelebrating] = useState<Goal | null>(null);
@@ -19,11 +19,27 @@ export function Goals() {
 
   const sortedGoals = useMemo(() => [...goals].sort((a, b) => a.order - b.order), [goals]);
 
+  const currentMonth = toMonthKey(new Date());
+
   const currentMonthSummary = useMemo(
-    () => computeMonthlySummary(incomes, settings, toMonthKey(new Date())),
-    [incomes, settings]
+    () => computeMonthlySummary(incomes, settings, currentMonth),
+    [incomes, settings, currentMonth]
   );
   const allocations = computeGoalAllocations(currentMonthSummary.goalsFund, sortedGoals);
+
+  async function handleToggleAllocated(goal: Goal, allocated: boolean) {
+    const amount = allocations.find((a) => a.goalId === goal.id)?.amount ?? 0;
+    if (allocated) {
+      const savedAmount = goal.savedAmount + amount;
+      await updateGoal(goal.id, { savedAmount, lastAllocatedMonth: currentMonth });
+      if (!isGoalCompleted(goal) && isGoalCompleted({ ...goal, savedAmount })) {
+        setCelebrating({ ...goal, savedAmount });
+      }
+    } else {
+      const savedAmount = Math.max(0, goal.savedAmount - amount);
+      await updateGoal(goal.id, { savedAmount, lastAllocatedMonth: null });
+    }
+  }
 
   function openEdit(goal: Goal) {
     setEditingGoal(goal);
@@ -96,6 +112,8 @@ export function Goals() {
               <GoalCard
                 goal={goal}
                 monthlyAllocation={allocations.find((a) => a.goalId === goal.id)?.amount ?? 0}
+                isAllocatedThisMonth={goal.lastAllocatedMonth === currentMonth}
+                onToggleAllocated={handleToggleAllocated}
                 onEdit={openEdit}
                 dragHandlers={{
                   onDragStart: handleDragStart(index),

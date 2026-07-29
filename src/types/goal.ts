@@ -8,6 +8,9 @@ export interface Goal {
   targetDate: string | null; // ISO date string or null
   color: string; // hex color for charts/progress
   order: number;
+  /** "YYYY-MM" of the last month whose computed allocation was actually
+   * transferred into savedAmount. Resets (mismatches) at the start of a new month. */
+  lastAllocatedMonth?: string | null;
   createdAt: string;
   updatedAt: string;
 }

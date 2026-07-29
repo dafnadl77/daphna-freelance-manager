@@ -3,6 +3,7 @@ import { CheckCircle2, GripVertical, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,8 @@ import type { Goal } from "@/types";
 interface GoalCardProps {
   goal: Goal;
   monthlyAllocation: number;
+  isAllocatedThisMonth: boolean;
+  onToggleAllocated: (goal: Goal, allocated: boolean) => void;
   onEdit: (goal: Goal) => void;
   dragHandlers: {
     onDragStart: (e: DragEvent<HTMLDivElement>) => void;
@@ -32,7 +35,14 @@ interface GoalCardProps {
   };
 }
 
-export function GoalCard({ goal, monthlyAllocation, onEdit, dragHandlers }: GoalCardProps) {
+export function GoalCard({
+  goal,
+  monthlyAllocation,
+  isAllocatedThisMonth,
+  onToggleAllocated,
+  onEdit,
+  dragHandlers,
+}: GoalCardProps) {
   const { deleteGoal } = useAppData();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const progress = goalProgressPercentage(goal);
@@ -94,6 +104,22 @@ export function GoalCard({ goal, monthlyAllocation, onEdit, dragHandlers }: Goal
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>הפרשה חודשית: {formatCurrency(monthlyAllocation)}</span>
               {goal.targetDate && <span>יעד לתאריך: {formatDate(goal.targetDate)}</span>}
+            </div>
+
+            <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2">
+              <div>
+                <p className="text-xs font-semibold">{isAllocatedThisMonth ? "הופרש בפועל החודש" : "עדיין לא הופרש החודש"}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {isAllocatedThisMonth
+                    ? `נוסף ${formatCurrency(monthlyAllocation)} ל"כבר נחסך"`
+                    : `סמני כשתעבירי בפועל ${formatCurrency(monthlyAllocation)}`}
+                </p>
+              </div>
+              <Switch
+                checked={isAllocatedThisMonth}
+                onCheckedChange={(checked) => onToggleAllocated(goal, checked)}
+                disabled={monthlyAllocation <= 0}
+              />
             </div>
           </div>
 
