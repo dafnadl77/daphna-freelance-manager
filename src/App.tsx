@@ -7,6 +7,7 @@ import { Auth } from "@/pages/Auth";
 import type { ScreenId } from "@/components/layout/nav-items";
 import { Dashboard } from "@/pages/Dashboard";
 import { Incomes } from "@/pages/Incomes";
+import { Expenses } from "@/pages/Expenses";
 import { Goals } from "@/pages/Goals";
 import { Reports } from "@/pages/Reports";
 import { Settings } from "@/pages/Settings";
@@ -29,6 +30,7 @@ function AppShell() {
     <Layout active={screen} onNavigate={setScreen}>
       {screen === "dashboard" && <Dashboard onNavigate={setScreen} />}
       {screen === "incomes" && <Incomes />}
+      {screen === "expenses" && <Expenses />}
       {screen === "goals" && <Goals />}
       {screen === "reports" && <Reports />}
       {screen === "settings" && <Settings />}

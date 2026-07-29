@@ -1,4 +1,4 @@
-import type { AppSettings, Goal, Income, IncomeCalculation, MonthlySummary, GoalAllocation } from "@/types";
+import type { AppSettings, Expense, Goal, Income, IncomeCalculation, MonthlySummary, GoalAllocation } from "@/types";
 
 /** Returns "YYYY-MM" for a given date (Date object or "YYYY-MM-DD" string). */
 export function toMonthKey(date: Date | string): string {
@@ -9,9 +9,7 @@ export function toMonthKey(date: Date | string): string {
 }
 
 /** Illustrative per-income breakdown: this income's own net (after its
- * optional organization fee) split by the current settings rates. National
- * Insurance is excluded here since it's a flat monthly amount, applied only
- * in computeMonthlySummary. */
+ * optional organization fee) split by the current settings rates. */
 export function calculateIncomeBreakdown(
   income: Pick<Income, "amountBeforeVat" | "hasOrganizationFee" | "organizationFeeRate">,
   settings: AppSettings
@@ -56,8 +54,13 @@ export function getIncomesForMonth(incomes: Income[], month: string): Income[] {
   return incomes.filter((income) => toMonthKey(income.date) === month);
 }
 
+export function getExpensesForMonth(expenses: Expense[], month: string): Expense[] {
+  return expenses.filter((expense) => toMonthKey(expense.date) === month);
+}
+
 export function computeMonthlySummary(
   incomes: Income[],
+  expenses: Expense[],
   settings: AppSettings,
   month: string
 ): MonthlySummary {
@@ -85,9 +88,7 @@ export function computeMonthlySummary(
     0
   );
 
-  const nationalInsurance = includedIncomes.length > 0 ? settings.nationalInsuranceMonthly : 0;
-
-  const netToDistribute = Math.max(0, totalIncome - totalOrganizationFees - nationalInsurance);
+  const netToDistribute = Math.max(0, totalIncome - totalOrganizationFees);
 
   const totalIncomeTax = netToDistribute * (settings.incomeTaxRate / 100);
   const totalBusinessReserve = netToDistribute * (settings.businessReserveRate / 100);
@@ -95,6 +96,9 @@ export function computeMonthlySummary(
   const personalNet = netToDistribute * (settings.homeRate / 100);
 
   const netAfterObligations = Math.max(0, netToDistribute - totalIncomeTax - totalBusinessReserve);
+
+  const totalExpenses = getExpensesForMonth(expenses, month).reduce((sum, e) => sum + e.amount, 0);
+  const personalNetAfterExpenses = Math.max(0, personalNet - totalExpenses);
 
   return {
     month,
@@ -105,10 +109,11 @@ export function computeMonthlySummary(
     totalOrganizationFees,
     totalIncomeTax,
     totalBusinessReserve,
-    nationalInsurance,
     netAfterObligations,
     goalsFund,
     personalNet,
+    totalExpenses,
+    personalNetAfterExpenses,
     incomeCount: includedIncomes.length,
   };
 }
@@ -161,9 +166,14 @@ export function getAvailableYears(incomes: Income[]): number[] {
   return Array.from(years).sort((a, b) => b - a);
 }
 
-export function computeYearlySummary(incomes: Income[], settings: AppSettings, year: number): MonthlySummary {
+export function computeYearlySummary(
+  incomes: Income[],
+  expenses: Expense[],
+  settings: AppSettings,
+  year: number
+): MonthlySummary {
   const monthlySummaries = Array.from({ length: 12 }, (_, i) =>
-    computeMonthlySummary(incomes, settings, `${year}-${String(i + 1).padStart(2, "0")}`)
+    computeMonthlySummary(incomes, expenses, settings, `${year}-${String(i + 1).padStart(2, "0")}`)
   );
 
   return monthlySummaries.reduce<MonthlySummary>(
@@ -176,10 +186,11 @@ export function computeYearlySummary(incomes: Income[], settings: AppSettings, y
       totalOrganizationFees: acc.totalOrganizationFees + m.totalOrganizationFees,
       totalIncomeTax: acc.totalIncomeTax + m.totalIncomeTax,
       totalBusinessReserve: acc.totalBusinessReserve + m.totalBusinessReserve,
-      nationalInsurance: acc.nationalInsurance + m.nationalInsurance,
       netAfterObligations: acc.netAfterObligations + m.netAfterObligations,
       goalsFund: acc.goalsFund + m.goalsFund,
       personalNet: acc.personalNet + m.personalNet,
+      totalExpenses: acc.totalExpenses + m.totalExpenses,
+      personalNetAfterExpenses: acc.personalNetAfterExpenses + m.personalNetAfterExpenses,
       incomeCount: acc.incomeCount + m.incomeCount,
     }),
     {
@@ -191,10 +202,11 @@ export function computeYearlySummary(incomes: Income[], settings: AppSettings, y
       totalOrganizationFees: 0,
       totalIncomeTax: 0,
       totalBusinessReserve: 0,
-      nationalInsurance: 0,
       netAfterObligations: 0,
       goalsFund: 0,
       personalNet: 0,
+      totalExpenses: 0,
+      personalNetAfterExpenses: 0,
       incomeCount: 0,
     }
   );
@@ -225,8 +237,16 @@ export function topProjectsByIncome(incomes: Income[]): RankedEntry[] {
     .sort((a, b) => b.amount - a.amount);
 }
 
-export function averageMonthlyIncome(incomes: Income[], settings: AppSettings, months: string[]): number {
+export function averageMonthlyIncome(
+  incomes: Income[],
+  expenses: Expense[],
+  settings: AppSettings,
+  months: string[]
+): number {
   if (months.length === 0) return 0;
-  const total = months.reduce((sum, m) => sum + computeMonthlySummary(incomes, settings, m).totalIncome, 0);
+  const total = months.reduce(
+    (sum, m) => sum + computeMonthlySummary(incomes, expenses, settings, m).totalIncome,
+    0
+  );
   return total / months.length;
 }

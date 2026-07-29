@@ -7,7 +7,7 @@
 import { supabase } from "./supabaseClient";
 import { BACKUP_VERSION } from "@/types/backup";
 import { DEFAULT_SETTINGS } from "@/types/settings";
-import type { AppSettings, BackupData, Goal, GoalInput, Income, IncomeInput } from "@/types";
+import type { AppSettings, BackupData, Expense, ExpenseInput, Goal, GoalInput, Income, IncomeInput } from "@/types";
 
 function generateId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -123,7 +123,6 @@ interface SettingsRow {
   vat_rate: number;
   organization_fee_rate: number;
   income_tax_rate: number;
-  national_insurance_monthly: number;
   business_reserve_rate: number;
   goals_rate: number;
   home_rate: number;
@@ -137,7 +136,6 @@ function settingsFromRow(row: SettingsRow): AppSettings {
     vatRate: Number(row.vat_rate),
     organizationFeeRate: Number(row.organization_fee_rate),
     incomeTaxRate: Number(row.income_tax_rate),
-    nationalInsuranceMonthly: Number(row.national_insurance_monthly),
     businessReserveRate: Number(row.business_reserve_rate),
     goalsRate: Number(row.goals_rate),
     homeRate: Number(row.home_rate),
@@ -152,7 +150,6 @@ function settingsToRow(settings: AppSettings): SettingsRow {
     vat_rate: settings.vatRate,
     organization_fee_rate: settings.organizationFeeRate,
     income_tax_rate: settings.incomeTaxRate,
-    national_insurance_monthly: settings.nationalInsuranceMonthly,
     business_reserve_rate: settings.businessReserveRate,
     goals_rate: settings.goalsRate,
     home_rate: settings.homeRate,
@@ -160,6 +157,37 @@ function settingsToRow(settings: AppSettings): SettingsRow {
     currency: settings.currency,
     number_format_locale: settings.numberFormatLocale,
   };
+}
+
+interface ExpenseRow {
+  id: string;
+  date: string;
+  name: string;
+  amount: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function expenseFromRow(row: ExpenseRow): Expense {
+  return {
+    id: row.id,
+    date: row.date,
+    name: row.name,
+    amount: Number(row.amount),
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function expenseToRow(input: Partial<ExpenseInput>): Partial<ExpenseRow> {
+  const row: Partial<ExpenseRow> = {};
+  if (input.date !== undefined) row.date = input.date;
+  if (input.name !== undefined) row.name = input.name;
+  if (input.amount !== undefined) row.amount = input.amount;
+  if (input.notes !== undefined) row.notes = input.notes;
+  return row;
 }
 
 function throwIfError<T>(result: { data: T; error: { message: string } | null }): T {
@@ -254,6 +282,34 @@ export const dataService = {
     return dataService.getGoals();
   },
 
+  // ----- Expenses -----
+  async getExpenses(): Promise<Expense[]> {
+    const result = await supabase.from("expenses").select("*").order("date", { ascending: false });
+    return throwIfError(result as { data: ExpenseRow[]; error: { message: string } | null }).map(expenseFromRow);
+  },
+
+  async addExpense(input: ExpenseInput): Promise<Expense> {
+    const row = { id: generateId(), ...expenseToRow(input) };
+    const result = await supabase.from("expenses").insert(row).select().single();
+    return expenseFromRow(throwIfError(result as { data: ExpenseRow; error: { message: string } | null }));
+  },
+
+  async updateExpense(id: string, patch: Partial<ExpenseInput>): Promise<Expense | null> {
+    const result = await supabase
+      .from("expenses")
+      .update({ ...expenseToRow(patch), updated_at: nowIso() })
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+    const row = throwIfError(result as { data: ExpenseRow | null; error: { message: string } | null });
+    return row ? expenseFromRow(row) : null;
+  },
+
+  async deleteExpense(id: string): Promise<void> {
+    const result = await supabase.from("expenses").delete().eq("id", id);
+    throwIfError(result as { data: null; error: { message: string } | null });
+  },
+
   // ----- Settings -----
   async getSettings(): Promise<AppSettings> {
     const userId = await getCurrentUserId();
@@ -286,8 +342,9 @@ export const dataService = {
 
   // ----- Backup / export / import -----
   async exportBackup(): Promise<BackupData> {
-    const [incomes, goals, settings] = await Promise.all([
+    const [incomes, expenses, goals, settings] = await Promise.all([
       dataService.getIncomes(),
+      dataService.getExpenses(),
       dataService.getGoals(),
       dataService.getSettings(),
     ]);
@@ -295,6 +352,7 @@ export const dataService = {
       version: BACKUP_VERSION,
       exportedAt: nowIso(),
       incomes,
+      expenses,
       goals,
       settings,
     };
@@ -303,11 +361,17 @@ export const dataService = {
   async importBackup(data: BackupData): Promise<void> {
     const userId = await getCurrentUserId();
     await supabase.from("incomes").delete().neq("id", "__none__");
+    await supabase.from("expenses").delete().neq("id", "__none__");
     await supabase.from("goals").delete().neq("id", "__none__");
 
     if (data.incomes.length > 0) {
       const rows = data.incomes.map((income) => ({ id: income.id || generateId(), ...incomeToRow(income) }));
       const result = await supabase.from("incomes").insert(rows);
+      throwIfError(result as { data: null; error: { message: string } | null });
+    }
+    if (data.expenses.length > 0) {
+      const rows = data.expenses.map((expense) => ({ id: expense.id || generateId(), ...expenseToRow(expense) }));
+      const result = await supabase.from("expenses").insert(rows);
       throwIfError(result as { data: null; error: { message: string } | null });
     }
     if (data.goals.length > 0) {
@@ -329,6 +393,7 @@ export function validateBackupData(data: unknown): data is BackupData {
   return (
     typeof candidate.version === "number" &&
     Array.isArray(candidate.incomes) &&
+    Array.isArray(candidate.expenses) &&
     Array.isArray(candidate.goals) &&
     typeof candidate.settings === "object" &&
     candidate.settings !== null

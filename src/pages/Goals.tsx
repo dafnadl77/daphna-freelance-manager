@@ -10,7 +10,7 @@ import { computeGoalAllocations, computeMonthlySummary, isGoalCompleted, toMonth
 import type { Goal } from "@/types";
 
 export function Goals() {
-  const { goals, incomes, settings, reorderGoals, updateGoal } = useAppData();
+  const { goals, incomes, expenses, settings, reorderGoals, updateGoal } = useAppData();
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [celebrating, setCelebrating] = useState<Goal | null>(null);
@@ -22,8 +22,8 @@ export function Goals() {
   const currentMonth = toMonthKey(new Date());
 
   const currentMonthSummary = useMemo(
-    () => computeMonthlySummary(incomes, settings, currentMonth),
-    [incomes, settings, currentMonth]
+    () => computeMonthlySummary(incomes, expenses, settings, currentMonth),
+    [incomes, expenses, settings, currentMonth]
   );
   const allocations = computeGoalAllocations(currentMonthSummary.goalsFund, sortedGoals);
 

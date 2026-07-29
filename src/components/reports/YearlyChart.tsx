@@ -2,18 +2,28 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/format";
 import { computeMonthlySummary } from "@/lib/finance";
-import type { AppSettings, Income } from "@/types";
+import type { AppSettings, Expense, Income } from "@/types";
 
 const MONTH_LABELS = ["ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יונ׳", "יול׳", "אוג׳", "ספט׳", "אוק׳", "נוב׳", "דצמ׳"];
 
-export function YearlyChart({ incomes, settings, year }: { incomes: Income[]; settings: AppSettings; year: number }) {
+export function YearlyChart({
+  incomes,
+  expenses,
+  settings,
+  year,
+}: {
+  incomes: Income[];
+  expenses: Expense[];
+  settings: AppSettings;
+  year: number;
+}) {
   const data = Array.from({ length: 12 }, (_, i) => {
     const month = `${year}-${String(i + 1).padStart(2, "0")}`;
-    const summary = computeMonthlySummary(incomes, settings, month);
+    const summary = computeMonthlySummary(incomes, expenses, settings, month);
     return {
       label: MONTH_LABELS[i],
       הכנסות: Math.round(summary.totalIncome),
-      "נשאר למחיה": Math.round(summary.personalNet),
+      "נשאר למחיה": Math.round(summary.personalNetAfterExpenses),
     };
   });
 

@@ -7,10 +7,11 @@ export interface MonthlySummary {
   totalOrganizationFees: number;
   totalIncomeTax: number;
   totalBusinessReserve: number;
-  nationalInsurance: number;
   netAfterObligations: number;
   goalsFund: number;
-  personalNet: number;
+  personalNet: number; // home/personal allocation before subtracting expenses
+  totalExpenses: number; // sum of this month's expense entries (e.g. National Insurance, rent...)
+  personalNetAfterExpenses: number; // the real bottom-line take-home
   incomeCount: number;
 }
 

@@ -8,3 +8,4 @@ dist-ssr
 
 .vercel
 .env
+.claude/scheduled_tasks.lock

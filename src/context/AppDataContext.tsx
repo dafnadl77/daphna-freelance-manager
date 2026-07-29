@@ -2,10 +2,21 @@ import * as React from "react";
 import { dataService, validateBackupData } from "@/services/dataService";
 import { toast } from "@/components/ui/use-toast";
 import { DEFAULT_SETTINGS } from "@/types/settings";
-import type { AppSettings, BackupData, Goal, GoalInput, Income, IncomeInput, IncomeStatus } from "@/types";
+import type {
+  AppSettings,
+  BackupData,
+  Expense,
+  ExpenseInput,
+  Goal,
+  GoalInput,
+  Income,
+  IncomeInput,
+  IncomeStatus,
+} from "@/types";
 
 interface AppDataContextValue {
   incomes: Income[];
+  expenses: Expense[];
   goals: Goal[];
   settings: AppSettings;
   loading: boolean;
@@ -15,6 +26,9 @@ interface AppDataContextValue {
   duplicateIncome: (id: string) => Promise<void>;
   setIncomeStatus: (id: string, status: IncomeStatus) => Promise<void>;
   clearSampleData: () => Promise<void>;
+  addExpense: (input: ExpenseInput) => Promise<void>;
+  updateExpense: (id: string, patch: Partial<ExpenseInput>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
   addGoal: (input: GoalInput) => Promise<void>;
   updateGoal: (id: string, patch: Partial<GoalInput>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
@@ -29,17 +43,20 @@ const AppDataContext = React.createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [incomes, setIncomes] = React.useState<Income[]>([]);
+  const [expenses, setExpenses] = React.useState<Expense[]>([]);
   const [goals, setGoals] = React.useState<Goal[]>([]);
   const [settings, setSettings] = React.useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = React.useState(true);
 
   const refresh = React.useCallback(async () => {
-    const [i, g, s] = await Promise.all([
+    const [i, e, g, s] = await Promise.all([
       dataService.getIncomes(),
+      dataService.getExpenses(),
       dataService.getGoals(),
       dataService.getSettings(),
     ]);
     setIncomes(i);
+    setExpenses(e);
     setGoals(g);
     setSettings(s);
     setLoading(false);
@@ -89,6 +106,26 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     await dataService.clearSampleData();
     setIncomes((prev) => prev.filter((i) => !i.isSample));
     toast({ title: "נתוני הדוגמה נמחקו", variant: "success" });
+  }, []);
+
+  const addExpense = React.useCallback(async (input: ExpenseInput) => {
+    const expense = await dataService.addExpense(input);
+    setExpenses((prev) => [expense, ...prev]);
+    toast({ title: "ההוצאה נשמרה", variant: "success" });
+  }, []);
+
+  const updateExpense = React.useCallback(async (id: string, patch: Partial<ExpenseInput>) => {
+    const updated = await dataService.updateExpense(id, patch);
+    if (updated) {
+      setExpenses((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      toast({ title: "ההוצאה עודכנה", variant: "success" });
+    }
+  }, []);
+
+  const deleteExpense = React.useCallback(async (id: string) => {
+    await dataService.deleteExpense(id);
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    toast({ title: "ההוצאה נמחקה", variant: "destructive" });
   }, []);
 
   const addGoal = React.useCallback(async (input: GoalInput) => {
@@ -146,6 +183,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const value = React.useMemo<AppDataContextValue>(() => {
     return {
       incomes,
+      expenses,
       goals,
       settings,
       loading,
@@ -155,6 +193,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       duplicateIncome,
       setIncomeStatus,
       clearSampleData,
+      addExpense,
+      updateExpense,
+      deleteExpense,
       addGoal,
       updateGoal,
       deleteGoal,
@@ -166,6 +207,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     };
   }, [
     incomes,
+    expenses,
     goals,
     settings,
     loading,
@@ -175,6 +217,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     duplicateIncome,
     setIncomeStatus,
     clearSampleData,
+    addExpense,
+    updateExpense,
+    deleteExpense,
     addGoal,
     updateGoal,
     deleteGoal,

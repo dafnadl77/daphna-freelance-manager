@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Info, LogOut, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, LogOut, RotateCcw, Trash2 } from "lucide-react";
 import { useAppData } from "@/context/AppDataContext";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,28 +133,6 @@ export function Settings() {
               className="w-28"
             />
           </FieldRow>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>ביטוח לאומי</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <FieldRow label="סכום חודשי (₪)">
-            <Input
-              type="number"
-              min={0}
-              step="1"
-              value={form.nationalInsuranceMonthly}
-              onChange={(e) => updateField("nationalInsuranceMonthly", Number(e.target.value))}
-              className="w-32"
-            />
-          </FieldRow>
-          <p className="flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
-            <Info className="h-4 w-4 shrink-0 text-primary" />
-            ביטוח לאומי הוא סכום חודשי ויורד פעם אחת מסיכום החודש, לא מכל עסקה בנפרד
-          </p>
         </CardContent>
       </Card>
 

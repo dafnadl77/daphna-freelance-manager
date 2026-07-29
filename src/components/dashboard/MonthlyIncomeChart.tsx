@@ -2,23 +2,24 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatMonthLabel } from "@/lib/format";
 import { computeMonthlySummary, shiftMonthKey } from "@/lib/finance";
-import type { AppSettings, Income } from "@/types";
+import type { AppSettings, Expense, Income } from "@/types";
 
 interface MonthlyIncomeChartProps {
   incomes: Income[];
+  expenses: Expense[];
   settings: AppSettings;
   centerMonth: string;
 }
 
-export function MonthlyIncomeChart({ incomes, settings, centerMonth }: MonthlyIncomeChartProps) {
+export function MonthlyIncomeChart({ incomes, expenses, settings, centerMonth }: MonthlyIncomeChartProps) {
   const months = Array.from({ length: 6 }, (_, i) => shiftMonthKey(centerMonth, -(5 - i)));
   const data = months.map((month) => {
-    const summary = computeMonthlySummary(incomes, settings, month);
+    const summary = computeMonthlySummary(incomes, expenses, settings, month);
     return {
       month,
       label: formatMonthLabel(month).replace(" ", "\n"),
       הכנסות: Math.round(summary.totalIncome),
-      "נשאר למחיה": Math.round(summary.personalNet),
+      "נשאר למחיה": Math.round(summary.personalNetAfterExpenses),
     };
   });
 

@@ -12,9 +12,9 @@ export function AllocationPieChart({ summary }: AllocationPieChartProps) {
     { name: "תשלום למטה", value: summary.totalOrganizationFees, color: "#FB923C" },
     { name: "מס הכנסה", value: summary.totalIncomeTax, color: "#F97316" },
     { name: "רזרבה לעסק", value: summary.totalBusinessReserve, color: "#F59E0B" },
-    { name: "ביטוח לאומי", value: summary.nationalInsurance, color: "#EF4444" },
+    { name: "הוצאות", value: summary.totalExpenses, color: "#EF4444" },
     { name: "הפרשה ליעדים", value: summary.goalsFund, color: "#7C3AED" },
-    { name: "נשאר למחיה", value: summary.personalNet, color: "#10B981" },
+    { name: "נשאר למחיה", value: summary.personalNetAfterExpenses, color: "#10B981" },
   ].filter((d) => d.value > 0.01);
 
   const hasData = data.length > 0;

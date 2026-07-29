@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Receipt, TrendingDown, Landmark, PiggyBank, ShieldCheck, Target, Wallet } from "lucide-react";
+import { Plus, Receipt, TrendingDown, Landmark, PiggyBank, ReceiptText, Target, Wallet } from "lucide-react";
 import { useAppData } from "@/context/AppDataContext";
 import { MonthPicker } from "@/components/shared/MonthPicker";
 import { Greeting } from "@/components/dashboard/Greeting";
@@ -18,11 +18,14 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { incomes, goals, settings } = useAppData();
+  const { incomes, expenses, goals, settings } = useAppData();
   const [month, setMonth] = useState(() => toMonthKey(new Date()));
   const [formOpen, setFormOpen] = useState(false);
 
-  const summary = useMemo(() => computeMonthlySummary(incomes, settings, month), [incomes, settings, month]);
+  const summary = useMemo(
+    () => computeMonthlySummary(incomes, expenses, settings, month),
+    [incomes, expenses, settings, month]
+  );
 
   return (
     <div className="space-y-6">
@@ -39,10 +42,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <SummaryCard label="תשלום למטה" amount={summary.totalOrganizationFees} icon={Landmark} tone="warning" />
         <SummaryCard label="מס הכנסה משוער" amount={summary.totalIncomeTax} icon={Landmark} tone="warning" />
         <SummaryCard label="רזרבה לעסק" amount={summary.totalBusinessReserve} icon={PiggyBank} tone="warning" />
-        <SummaryCard label="ביטוח לאומי" amount={summary.nationalInsurance} icon={ShieldCheck} tone="warning" />
         <SummaryCard label="הפרשה ליעדים" amount={summary.goalsFund} icon={Target} />
-        <SummaryCard label="נשאר למחיה" amount={summary.personalNet} icon={Wallet} tone="success" emphasize />
+        <SummaryCard label="הפרשה לבית" amount={summary.personalNet} icon={Wallet} tone="muted" />
+        <SummaryCard label="הוצאות" amount={summary.totalExpenses} icon={ReceiptText} tone="warning" />
       </div>
+
+      <SummaryCard
+        label="נשאר למחיה בפועל"
+        amount={summary.personalNetAfterExpenses}
+        icon={Wallet}
+        tone="success"
+        emphasize
+        helper="הפרשה לבית פחות ההוצאות החודשיות"
+      />
 
       <Button size="lg" className="w-full sm:w-auto" onClick={() => setFormOpen(true)}>
         <Plus className="h-5 w-5" />
@@ -51,7 +63,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <AllocationPieChart summary={summary} />
-        <MonthlyIncomeChart incomes={incomes} settings={settings} centerMonth={month} />
+        <MonthlyIncomeChart incomes={incomes} expenses={expenses} settings={settings} centerMonth={month} />
       </div>
 
       <GoalsOverview goals={goals} goalsFund={summary.goalsFund} />

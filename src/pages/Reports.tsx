@@ -21,31 +21,39 @@ import {
   topClientsByIncome,
   topProjectsByIncome,
 } from "@/lib/finance";
-import { Receipt, Landmark, ShieldCheck, PiggyBank, Target, Wallet, Clock3 } from "lucide-react";
+import { Receipt, Landmark, ReceiptText, PiggyBank, Target, Wallet, Clock3 } from "lucide-react";
 
 export function Reports() {
-  const { incomes, goals, settings } = useAppData();
+  const { incomes, expenses, goals, settings } = useAppData();
   const [tab, setTab] = useState<"monthly" | "yearly">("monthly");
   const [month, setMonth] = useState(() => toMonthKey(new Date()));
   const years = useMemo(() => getAvailableYears(incomes), [incomes]);
   const [year, setYear] = useState(() => new Date().getFullYear());
 
-  const monthlySummary = useMemo(() => computeMonthlySummary(incomes, settings, month), [incomes, settings, month]);
-  const yearlySummary = useMemo(() => computeYearlySummary(incomes, settings, year), [incomes, settings, year]);
+  const monthlySummary = useMemo(
+    () => computeMonthlySummary(incomes, expenses, settings, month),
+    [incomes, expenses, settings, month]
+  );
+  const yearlySummary = useMemo(
+    () => computeYearlySummary(incomes, expenses, settings, year),
+    [incomes, expenses, settings, year]
+  );
   const summary = tab === "monthly" ? monthlySummary : yearlySummary;
 
   const topClients = useMemo(() => topClientsByIncome(incomes).slice(0, 3), [incomes]);
   const topProjects = useMemo(() => topProjectsByIncome(incomes).slice(0, 3), [incomes]);
 
   const last6Months = useMemo(() => Array.from({ length: 6 }, (_, i) => shiftMonthKey(month, -(5 - i))), [month]);
-  const avgMonthly = useMemo(() => averageMonthlyIncome(incomes, settings, last6Months), [incomes, settings, last6Months]);
+  const avgMonthly = useMemo(
+    () => averageMonthlyIncome(incomes, expenses, settings, last6Months),
+    [incomes, expenses, settings, last6Months]
+  );
 
   const goalAllocations = computeGoalAllocations(summary.goalsFund, goals);
 
-  const totalObligations =
-    summary.totalOrganizationFees + summary.totalIncomeTax + summary.totalBusinessReserve + summary.nationalInsurance;
+  const totalObligations = summary.totalOrganizationFees + summary.totalIncomeTax + summary.totalBusinessReserve;
   const obligationsRatio = summary.totalIncome > 0 ? (totalObligations / summary.totalIncome) * 100 : 0;
-  const personalRatio = summary.totalIncome > 0 ? (summary.personalNet / summary.totalIncome) * 100 : 0;
+  const personalRatio = summary.totalIncome > 0 ? (summary.personalNetAfterExpenses / summary.totalIncome) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -89,7 +97,12 @@ export function Reports() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <AllocationPieChart summary={summary} />
-        <YearlyChart incomes={incomes} settings={settings} year={tab === "monthly" ? Number(month.slice(0, 4)) : year} />
+        <YearlyChart
+          incomes={incomes}
+          expenses={expenses}
+          settings={settings}
+          year={tab === "monthly" ? Number(month.slice(0, 4)) : year}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -203,9 +216,10 @@ function ReportStats({
       <SummaryCard label="תשלום למטה" amount={summary.totalOrganizationFees} icon={Landmark} tone="warning" />
       <SummaryCard label="מס הכנסה משוער" amount={summary.totalIncomeTax} icon={Landmark} tone="warning" />
       <SummaryCard label="רזרבה לעסק" amount={summary.totalBusinessReserve} icon={PiggyBank} tone="warning" />
-      <SummaryCard label="ביטוח לאומי" amount={summary.nationalInsurance} icon={ShieldCheck} tone="warning" />
       <SummaryCard label="הפרשה ליעדים" amount={summary.goalsFund} icon={Target} />
-      <SummaryCard label="נטו למחיה" amount={summary.personalNet} icon={Wallet} tone="success" emphasize />
+      <SummaryCard label="הפרשה לבית" amount={summary.personalNet} icon={Wallet} tone="muted" />
+      <SummaryCard label="הוצאות" amount={summary.totalExpenses} icon={ReceiptText} tone="warning" />
+      <SummaryCard label="נטו למחיה בפועל" amount={summary.personalNetAfterExpenses} icon={Wallet} tone="success" emphasize />
     </div>
   );
 }
