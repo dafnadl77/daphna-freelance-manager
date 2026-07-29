@@ -49,6 +49,15 @@ export function IncomeCard({ income, onEdit }: IncomeCardProps) {
             </div>
             <p className="mt-0.5 truncate text-sm text-muted-foreground">{income.projectName}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(income.date)}</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {income.hasOrganizationFee ? (
+                <Badge variant="warning">תשלום למטה {income.organizationFeeRate}%</Badge>
+              ) : (
+                <Badge variant="outline">ללא תשלום למטה</Badge>
+              )}
+              {income.calculateIncomeTax && <Badge variant="warning">מס הכנסה {income.incomeTaxRate}%</Badge>}
+              {income.hasBusinessReserve && <Badge variant="warning">רזרבה {income.businessReserveRate}%</Badge>}
+            </div>
           </div>
           <div className="text-left">
             <p className="text-lg font-extrabold">{formatCurrency(income.amountBeforeVat)}</p>
